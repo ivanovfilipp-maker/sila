@@ -532,7 +532,7 @@ button.list-row:active { background: var(--fill); }
 <script>/* «Сила» — home-screen web app layer: storage, offline, push timer, automatic backups. */
 (function () {
 "use strict";
-var KEY = "sila-app-v2", CFGK = "sila-web", DEF_SERVER = "__SERVER__";
+var KEY = "sila-app-v2", CFGK = "sila-web", DEF_SERVER = "https://sila.ivanov-filipp.workers.dev";
 var IS_TEST = !!window.__TEST__;
 function dflt() { return { server: DEF_SERVER.indexOf("__") === 0 ? "" : DEF_SERVER, code: "", vapid: "", push: false, wake: true, last: null, lastErr: null, lastExport: null, suspect: null, force: false }; }
 var cfg = dflt();
