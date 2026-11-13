@@ -1,5 +1,5 @@
 /* «Сила» service worker: works offline, shows the rest-timer push. */
-var CACHE = "sila-1.6.0-25c19530";
+var CACHE = "sila-1.7.0-3d4b8742";
 var ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png"];
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(ASSETS); }).then(function () { return self.skipWaiting(); }));

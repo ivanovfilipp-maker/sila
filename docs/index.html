@@ -506,26 +506,54 @@ button.list-row:active { background: var(--fill); }
 /* ---------- web app: restore code, wide screens (unfolded iPhone Duo, landscape) ---------- */
 .code-big { font-size: 24px; font-weight: 800; letter-spacing: .06em; text-align: center; padding: 18px 10px; border-radius: 20px; background: var(--fill); -webkit-user-select: text; user-select: text; }
 .warnbox .pill { margin-top: 6px; }
-@media (min-width: 640px) {
-  .wrap { max-width: 1180px; padding: 0 22px; }
-  .wrap:not(.wo-list) { display: block; columns: 2; column-gap: 16px; }
-  .wrap:not(.wo-list) > * { break-inside: avoid; margin: 0 0 14px; }
-  .wrap:not(.wo-list) > *:not(section), .wrap:not(.wo-list) > .next-day { column-span: all; }
-  .wo-head .wrap:not(.wo-list) { columns: auto; }
-  .wo-head .wrap > * { margin: 0; }
-  .wo-list { max-width: 640px; }
-  .tabs, .timer { max-width: 560px; }
-  .sheet { max-width: 620px; bottom: 16px; }
+.pane { display: contents; }
+.n5 { order: 5; }
+.tail { display: grid; gap: 14px; order: 6; }
+/* status column on the right edge (iPhone Duo): content stays clear of it, background runs under it */
+:root { --col: 0px; --sar: max(env(safe-area-inset-right, 0px), var(--col)); --sal: env(safe-area-inset-left, 0px); }
+#app { padding-right: var(--sar); padding-left: var(--sal); }
+.tabs { left: calc(14px + var(--sal)); right: calc(14px + var(--sar)); }
+.timer { left: calc(12px + var(--sal)); right: calc(12px + var(--sar)); }
+.toast { left: calc(16px + var(--sal)); right: calc(16px + var(--sar)); }
+.sheet { left: calc(8px + var(--sal)); right: calc(8px + var(--sar)); }
+.wo-head::before { right: calc(-1 * var(--sar)); }
+.colshade { display: none; position: fixed; top: 0; right: 0; bottom: 0; width: var(--col); z-index: 50; pointer-events: none; background: #07090c; }
+@media (prefers-color-scheme: light) { html.has-col .colshade { display: block; } }
+
+/* ---------- wide screens: unfolded iPhone Duo in landscape ---------- */
+@media (min-width: 700px) {
+  :root { --rail: 112px; }
+  body { padding-bottom: 28px; }
+  body.has-timer { padding-bottom: 112px; }
+  #app { padding-left: calc(var(--rail) + var(--sal)); }
+  .wrap { max-width: 720px; padding: 0 18px 0 6px; }
+  .wrap:has(> .pane), .wrap.wo-list { max-width: 1120px; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; align-items: start; }
+  .wrap:has(> .pane) > :not(.pane) { grid-column: 1 / -1; }
+  .wo-head .wrap { max-width: 1120px; }
+  .pane { display: grid; gap: 14px; align-content: start; min-width: 0; }
+  .pane.stick { position: sticky; top: calc(env(safe-area-inset-top) + 12px); }
+  .pane > .w-first { order: -1; }
+  .pane .n5, .tail { order: 0; }
+  .chips { margin: 0; padding: 2px 0 4px; flex-wrap: wrap; overflow: visible; }
+  .hist-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hist-list .hist-item:nth-child(odd) { border-right: 1px solid var(--line); }
+  /* tab bar becomes a rail on the left */
+  .tabs-fade { display: none; }
+  .tabs { left: calc(14px + var(--sal)); right: auto; top: 50%; bottom: auto; width: 86px; height: min(410px, calc(100% - 40px)); max-width: none; margin: 0; transform: translateY(-50%); grid-template-columns: 1fr; grid-template-rows: repeat(5, 1fr); border-radius: 43px; }
+  .tabs .ind { top: 5px; bottom: auto; left: 5px; right: 5px; width: auto; height: calc((100% - 10px) / 5); border-radius: 34px; transform: translateY(calc(var(--i, 0) * 100%)); }
+  .tabs button { border-radius: 34px; font-size: 10px; }
+  .timer { left: calc(var(--rail) + var(--sal) + 12px); bottom: 16px; max-width: 560px; }
+  .toast { left: calc(var(--rail) + var(--sal) + 16px); }
+  .sheet { left: calc(var(--rail) + var(--sal) + 8px); max-width: 620px; bottom: 16px; }
 }
-@media (min-width: 820px) {
-  .wo-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 1180px; align-items: start; column-gap: 16px; }
-}
+@media (min-width: 700px) { #foodSum .btns .btn { white-space: nowrap; padding-left: 10px; padding-right: 10px; font-size: 15px; } }
 </style>
 </head>
 <body>
 <main id="app"></main>
 <div id="timer"></div>
 <div id="nav"></div>
+<div class="colshade" aria-hidden="true"></div>
 <div id="toast" class="toast" role="status"></div>
 <div class="backdrop" id="backdrop"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
@@ -534,7 +562,7 @@ button.list-row:active { background: var(--fill); }
 "use strict";
 var KEY = "sila-app-v2", CFGK = "sila-web", DEF_SERVER = "https://sila.ivanov-filipp.workers.dev";
 var IS_TEST = !!window.__TEST__;
-function dflt() { return { server: DEF_SERVER.indexOf("__") === 0 ? "" : DEF_SERVER, code: "", vapid: "", push: false, wake: true, last: null, lastErr: null, lastExport: null, suspect: null, force: false }; }
+function dflt() { return { server: DEF_SERVER.indexOf("__") === 0 ? "" : DEF_SERVER, code: "", vapid: "", push: false, wake: true, fill: true, last: null, lastErr: null, lastExport: null, suspect: null, force: false }; }
 var cfg = dflt();
 try { cfg = Object.assign(dflt(), JSON.parse(localStorage.getItem(CFGK) || "{}")); } catch (e) {}
 function saveCfg() { var t = JSON.stringify(cfg); try { localStorage.setItem(CFGK, t); } catch (e) {} idbPut("cfg", t); }
@@ -769,7 +797,8 @@ function cardHtml() {
   h += '<section class="card"><div class="label">Копия в «Файлы»</div><div class="note">Последняя: ' + ago(cfg.lastExport) + ". Выбери iCloud Drive или Google Drive. Сохраняй раз в неделю — это копия на случай, если сервер недоступен.</div>" +
     '<div class="btns"><button class="btn" data-act="web" data-w="export">Сохранить в Файлы</button><button class="btn" data-act="web" data-w="import">Открыть файл копии</button></div>' +
     '<div class="btns"><button class="btn" data-act="copyAll">Скопировать данные</button><button class="btn" data-act="restore">Вставить текст копии</button></div></section>';
-  h += '<section class="card">' + '<div class="toggle"><div><b>Не гасить экран на тренировке</b><small>Экран не выключается, пока идёт тренировка. Блокировать можно как обычно</small></div><button class="switch" role="switch" data-act="web" data-w="wake" aria-checked="' + !!cfg.wake + '" aria-label="Не гасить экран"></button></div></section>';
+  h += '<section class="card">' + '<div class="toggle"><div><b>Не гасить экран на тренировке</b><small>Экран не выключается, пока идёт тренировка. Блокировать можно как обычно</small></div><button class="switch" role="switch" data-act="web" data-w="wake" aria-checked="' + !!cfg.wake + '" aria-label="Не гасить экран"></button></div>' +
+    '<div class="toggle"><div><b>Фон на весь экран</b><small>Убирает чёрную полосу у часов на iPhone Duo. Если экран стал выглядеть странно — выключи</small></div><button class="switch" role="switch" data-act="web" data-w="fill" aria-checked="' + !!cfg.fill + '" aria-label="Фон на весь экран"></button></div></section>';
   return h;
 }
 function bannerHtml() {
@@ -800,6 +829,7 @@ function act(w, el) {
   else if (w === "import") pickFile();
   else if (w === "importGo") importGo();
   else if (w === "wake") { cfg.wake = !cfg.wake; saveCfg(); rerender(); }
+  else if (w === "fill") { cfg.fill = !cfg.fill; saveCfg(); fitReset(); if (cfg.fill) setTimeout(fitDuo, 350); rerender(); }
 }
 
 /* ---------- screen wake lock during a workout ---------- */
@@ -812,10 +842,47 @@ function wakeTick() {
   } else if (!want && lock) { try { lock.release(); } catch (e) {} lock = null; }
 }
 
+/* ---------- iPhone Duo: run the background under the status column ----------
+   iOS lays a home-screen web app out narrower than the screen and leaves the status column black, reporting no
+   safe-area inset for it. A numeric viewport makes the page span the full width; content keeps clear via --col. */
+var VP0 = null, fitKey = "", fitOn = false, fitT = null;
+function vpMeta() { return document.querySelector('meta[name="viewport"]'); }
+function scrKey() { var o = screen.orientation ? screen.orientation.type : String(window.orientation); return screen.width + "x" + screen.height + ":" + o; }
+function envRight() {
+  var d = document.createElement("div"); d.style.cssText = "position:fixed;visibility:hidden;padding-right:env(safe-area-inset-right,0px)";
+  document.documentElement.appendChild(d); var v = parseFloat(getComputedStyle(d).paddingRight) || 0; d.remove(); return v;
+}
+function fitReset() {
+  var m = vpMeta(); if (m && VP0) m.setAttribute("content", VP0);
+  document.documentElement.style.removeProperty("--col"); document.documentElement.classList.remove("has-col"); fitOn = false;
+}
+function fitDuo() {
+  try {
+    var m = vpMeta(); if (!m) return; if (!VP0) VP0 = m.getAttribute("content");
+    fitKey = scrKey();
+    if (!cfg.fill || !(standalone() || window.__FORCE_FIT) || fitOn) return;
+    if (envRight() > 0) return;                       // the system reports the column itself: CSS handles it
+    var iw = window.innerWidth, ih = window.innerHeight, full = 0;
+    [screen.width, screen.height].forEach(function (v) { var g = v - iw; if (g >= 60 && g <= 120) full = v; });
+    if (!full) return;
+    var gap = full - iw;
+    m.setAttribute("content", "width=" + full + ", height=" + ih + ", initial-scale=1, maximum-scale=1, viewport-fit=cover");
+    fitOn = true;
+    document.documentElement.style.setProperty("--col", gap + "px"); document.documentElement.classList.add("has-col");
+    setTimeout(function () { if (fitOn && Math.abs(window.innerWidth - full) > 2) fitReset(); }, 700);   // the system ignored it: back to normal
+  } catch (e) { try { fitReset(); } catch (x) {} }
+}
+function fitWatch() {
+  var again = function () { clearTimeout(fitT); fitT = setTimeout(function () { if (scrKey() !== fitKey || !fitOn) { fitReset(); setTimeout(fitDuo, 350); } }, 250); };
+  window.addEventListener("resize", again); window.addEventListener("orientationchange", again);
+  setInterval(function () { if (scrKey() !== fitKey) again(); }, 1500);
+}
+
 /* ---------- boot ---------- */
 function after() {
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
   if (!IS_TEST && navigator.serviceWorker) navigator.serviceWorker.register("./sw.js").then(function (r) { try { r.update(); } catch (e) {} }).catch(function () {});
+  fitDuo(); fitWatch();
   setInterval(wakeTick, 2000);
   document.addEventListener("visibilitychange", function () { wakeTick(); if (document.hidden && bkDirty && connected()) { clearTimeout(bkT); doBackup(); } });
   window.addEventListener("online", function () { if (bkDirty) scheduleBackup(); });
@@ -842,7 +909,7 @@ var BOOT = window.__BOOT || null;
 var SEED = {"v":2,"unit":"lb","formula":"epley","set":{"rest":120,"warmRest":60,"sound":true,"askRpe":true},"plates":{"lb":{"5":true,"10":true,"25":true,"35":true,"45":true,"55":false,"2.5":true},"kg":{"5":true,"10":true,"15":true,"20":true,"25":true,"2.5":true,"1.25":true}},"ex":{"bench":{"id":"bench","name":"Жим штанги лёжа","kind":"barbell","stepLb":5,"stepKg":2.5,"iso":false,"elbow":false,"mus":{"chest":1,"triceps":0.5},"note":"Жми в раме со страховочными упорами на 2–3 см ниже груди или со страховщиком.","load":{"type":"bar","base":45}},"incline":{"id":"incline","name":"Наклонный жим в тренажёре","kind":"machine","stepLb":10,"stepKg":5,"iso":false,"elbow":false,"mus":{"chest":1,"triceps":0.5},"note":"","load":{"type":"none","base":0}},"tricext":{"id":"tricext","name":"Разгибания из-за головы (канат)","kind":"cable","stepLb":5,"stepKg":2.5,"iso":true,"elbow":true,"mus":{"triceps":1},"note":"31.10 при 100 lb щёлкал локоть без боли почти в растянутой точке. После 14.11 вернуть с 60–70 lb, опускать за 3 с, останавливаться чуть выше точки щелчка.","load":{"type":"none","base":0}},"pushdown":{"id":"pushdown","name":"Разгибания вниз (прямая рукоять)","kind":"cable","stepLb":10,"stepKg":5,"iso":true,"elbow":true,"mus":{"triceps":1},"note":"До 14.11 стоит вместо разгибаний из-за головы.","load":{"type":"none","base":0}},"preacher":{"id":"preacher","name":"Сгибания в тренажёре Скотта","kind":"machine","stepLb":10,"stepKg":5,"iso":true,"elbow":true,"mus":{"biceps":1},"note":"Сиденье 4.","load":{"type":"none","base":0}},"hammer":{"id":"hammer","name":"Молотковые сгибания","kind":"dumbbell","stepLb":5,"stepKg":2,"iso":true,"elbow":true,"mus":{"biceps":1,"forearms":0.5},"note":"Без отказа: нагрузка на локти.","load":{"type":"none","base":0}},"lateral":{"id":"lateral","name":"Подъёмы в стороны на блоке","kind":"cable","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"side":1},"note":"","load":{"type":"none","base":0}},"pulldown":{"id":"pulldown","name":"Верхняя тяга","kind":"machine","stepLb":10,"stepKg":5,"iso":false,"elbow":false,"mus":{"back":1,"biceps":0.5},"note":"","load":{"type":"none","base":0}},"isorow":{"id":"isorow","name":"Горизонтальная тяга Iso-Lateral","kind":"machine","stepLb":5,"stepKg":2.5,"iso":false,"elbow":false,"mus":{"back":1,"biceps":0.5,"rear":0.5},"note":"","load":{"type":"plates","base":0}},"revfly":{"id":"revfly","name":"Обратные разведения","kind":"machine","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"rear":1},"note":"Рукояти назад, грудью к спинке.","load":{"type":"none","base":0}},"pecdeck":{"id":"pecdeck","name":"Сведения в тренажёре (пек-дек)","kind":"machine","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"chest":1},"note":"Рукояти вперёд, середина груди. Пауза 1 с в сведении.","load":{"type":"none","base":0}},"revcurl":{"id":"revcurl","name":"Обратные сгибания со штангой","kind":"barbell","stepLb":5,"stepKg":2.5,"iso":true,"elbow":true,"mus":{"forearms":1,"biceps":0.5},"note":"Без отказа: нагрузка на локти.","load":{"type":"bar","base":45}},"grip":{"id":"grip","name":"Эспандер Iron Grip","kind":"grip","stepLb":0,"stepKg":0,"iso":true,"elbow":true,"mus":{"forearms":1},"note":"RPE ≤ 9.","load":{"type":"none","base":0}},"crunch":{"id":"crunch","name":"Скручивания на блоке","kind":"cable","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"abs":1},"note":"По желанию. Если стоять на коленях нельзя, пропусти.","load":{"type":"none","base":0}},"legext":{"id":"legext","name":"Разгибания ног в тренажёре","kind":"machine","stepLb":10,"stepKg":5,"iso":true,"elbow":false,"mus":{"quads":1},"note":"","load":{"type":"none","base":0}},"calf":{"id":"calf","name":"Икры в тренажёре","kind":"machine","stepLb":10,"stepKg":5,"iso":true,"elbow":false,"mus":{"calves":1},"note":"","load":{"type":"none","base":0}}},"days":[{"id":"A","name":"Грудь","items":[{"ex":"bench","scheme":"topback","top":{"lo":3,"hi":5,"rpeLo":8,"rpeHi":8.5,"startW":215,"rest":180},"sets":3,"lo":6,"hi":8,"rpeLo":8,"rpeHi":9,"rest":150,"backPct":0.9,"warm":5},{"ex":"incline","sets":3,"lo":8,"hi":10,"rpeLo":8,"rpeHi":9,"rest":150,"warm":2},{"ex":"pushdown","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"last10":true,"startW":130,"warm":1},{"ex":"preacher","sets":3,"lo":8,"hi":12,"rpeLo":8,"rpeHi":9,"rest":105,"last10":true,"warm":1},{"ex":"hammer","sets":3,"lo":8,"hi":12,"rpeLo":8,"rpeHi":9,"rest":105,"warm":0},{"ex":"lateral","sets":3,"lo":12,"hi":20,"rpeLo":8,"rpeHi":9,"rest":75,"last10":true,"warm":1},{"ex":"legext","sets":2,"lo":12,"hi":20,"rpeLo":7,"rpeHi":8,"rest":45,"group":"1"},{"ex":"calf","sets":2,"lo":12,"hi":20,"rpeLo":7,"rpeHi":8,"rest":90,"group":"1"}]},{"id":"B","name":"Спина","items":[{"ex":"pulldown","sets":4,"lo":8,"hi":12,"rpeLo":8,"rpeHi":9,"rest":150,"warm":3},{"ex":"isorow","sets":4,"lo":10,"hi":12,"rpeLo":8,"rpeHi":9,"rest":150,"warm":1},{"ex":"pushdown","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"startW":130,"warm":2},{"ex":"revfly","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":90,"last10":true,"startW":105,"warm":1},{"ex":"lateral","sets":3,"lo":15,"hi":20,"rpeLo":8,"rpeHi":9,"rest":75,"last10":true,"warm":0},{"ex":"grip","sets":3,"lo":15,"hi":15,"rpeLo":8,"rpeHi":9,"rest":60,"startW":84,"warm":1},{"ex":"crunch","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":8,"rest":60,"optional":true,"warm":1}]},{"id":"C","name":"Фулл бади","items":[{"ex":"bench","sets":3,"lo":10,"hi":12,"rpeLo":7.5,"rpeHi":8,"rest":150,"warm":3},{"ex":"isorow","sets":3,"lo":10,"hi":12,"rpeLo":8,"rpeHi":8,"rest":120,"warm":2},{"ex":"pulldown","sets":3,"lo":12,"hi":15,"rpeLo":8,"rpeHi":8,"rest":120,"warm":1},{"ex":"pecdeck","sets":3,"lo":12,"hi":15,"rpeLo":8,"rpeHi":9,"rest":45,"group":"1","warm":1},{"ex":"revfly","sets":3,"lo":12,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"group":"1","warm":1},{"ex":"lateral","sets":3,"lo":15,"hi":20,"rpeLo":8,"rpeHi":9,"rest":45,"last10":true,"group":"2","warm":1},{"ex":"preacher","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"last10":true,"group":"2","warm":1},{"ex":"revcurl","sets":2,"lo":12,"hi":15,"rpeLo":8,"rpeHi":9,"rest":90,"warm":1}]}],"order":["A","B","C"],"workouts":[],"active":null,"timer":null,"body":[],"food":{"items":[{"id":"f1","name":"Овсянка","kcal":113,"p":4,"f":2,"c":20,"fib":3},{"id":"f2","name":"Протеин","kcal":120,"p":24,"f":2,"c":3,"fib":1},{"id":"f3","name":"Салат без соуса","kcal":100,"p":16,"f":2,"c":2,"fib":2},{"id":"f4","name":"Омлет","kcal":160,"p":11,"f":8,"c":11,"fib":1},{"id":"f5","name":"Клюква сушёная 40 г","kcal":130,"p":0,"f":10,"c":6,"fib":3},{"id":"f6","name":"Томатный сок","kcal":0,"p":0,"f":0,"c":0,"fib":0},{"id":"f7","name":"Молоко","kcal":150,"p":8,"f":8,"c":13,"fib":0},{"id":"f8","name":"Банан","kcal":100,"p":1,"f":0,"c":27,"fib":3},{"id":"f9","name":"Яйцо куриное","kcal":70,"p":6,"f":5,"c":1,"fib":0},{"id":"f10","name":"Пиво","kcal":200,"p":0,"f":0,"c":0,"fib":0},{"id":"f11","name":"Фасоль, банка","kcal":455,"p":24,"f":5,"c":80,"fib":28},{"id":"f12","name":"Чипотл","kcal":650,"p":75,"f":17,"c":48,"fib":13},{"id":"f13","name":"Тунец, банка","kcal":165,"p":39,"f":1,"c":0,"fib":0},{"id":"f14","name":"Пиво 0","kcal":0,"p":0,"f":0,"c":0,"fib":0},{"id":"f15","name":"Йогурт греческий","kcal":90,"p":15,"f":0,"c":0,"fib":0},{"id":"f16","name":"Йогурт жидкий","kcal":120,"p":23,"f":2,"c":5,"fib":0},{"id":"f17","name":"Брискет 1/2","kcal":665,"p":105,"f":28,"c":6,"fib":0},{"id":"f18","name":"Колбаска","kcal":100,"p":10,"f":7,"c":0,"fib":0},{"id":"f19","name":"Протеиновый батончик","kcal":150,"p":28,"f":2,"c":11,"fib":2},{"id":"f20","name":"Ono Hawaiian","kcal":750,"p":56,"f":21,"c":83,"fib":3},{"id":"f21","name":"Milk shake бол.","kcal":250,"p":35,"f":3,"c":5,"fib":1},{"id":"f22","name":"Пиво Coors Light","kcal":100,"p":0,"f":0,"c":0,"fib":0},{"id":"f23","name":"Panda Express","kcal":720,"p":72,"f":29,"c":40,"fib":9},{"id":"f24","name":"5 перцев","kcal":35,"p":1,"f":0,"c":7,"fib":3},{"id":"f25","name":"Вяленое мясо","kcal":90,"p":14,"f":0,"c":12,"fib":2},{"id":"f26","name":"Кофе","kcal":150,"p":0,"f":0,"c":0,"fib":0},{"id":"f27","name":"Дабл-дабл","kcal":610,"p":34,"f":0,"c":0,"fib":0},{"id":"f28","name":"Стейк кубики","kcal":120,"p":20,"f":3,"c":1,"fib":0},{"id":"f29","name":"Мясо стик","kcal":90,"p":6,"f":6,"c":3,"fib":0},{"id":"f30","name":"Тунец, пакет","kcal":70,"p":14,"f":1,"c":2,"fib":1},{"id":"f31","name":"Мясо","kcal":270,"p":40,"f":11,"c":4,"fib":0},{"id":"f32","name":"Курица 1/4 упаковки","kcal":326,"p":60,"f":10,"c":0,"fib":0}],"goals":{"kcal":1800,"p":200,"f":60,"c":120,"fib":30},"day":{"d":"2026-11-02","por":{"f1":2,"f4":1,"f5":1,"f7":2,"f16":2,"f19":1,"f20":1}},"log":[]}};
 var KEY = "sila-app-v2";
 var LB = 2.20462;
-var VERSION = "1.6.0";
+var VERSION = "1.7.0";
 
 /* ============================== state ============================== */
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -851,7 +918,7 @@ var S = null;
 if (valid(BOOT)) S = BOOT;
 if (!S) { try { var ls = JSON.parse(localStorage.getItem(KEY) || "null"); if (valid(ls)) S = ls; } catch (e) {} }
 if (!S) S = clone(SEED);
-(function migrate() {
+function migrate() {
   S.set = Object.assign({ rest: 120, warmRest: 60, sound: true, askRpe: true }, S.set || {});
   S.plates = S.plates || clone(SEED.plates);
   S.body = S.body || [];
@@ -903,7 +970,8 @@ if (!S) S = clone(SEED);
   }
   if (!S.mig.pulldownPlates && S.ex.pulldown) { if (!S.ex.pulldown.load || S.ex.pulldown.load.type === "none") S.ex.pulldown.load = { type: "plates", base: 0, sides: 2 }; S.mig.pulldownPlates = true; }
   S.nutr = Object.assign({ cutStart: "2026-08-05", maint: 2400, brk: null, breaks: [] }, S.nutr || {});
-})();
+}
+migrate();
 
 var U = { tab: S.active ? "train" : (S.uiTab || "train"), sub: null, rmEdit: null, calc: {}, calcRm: {}, calcRmEdit: null, calcEdit: null, calcRpe: 10, foodQ: "", pick: null, scroll: {}, confirm: null };
 
@@ -1818,6 +1886,7 @@ function viewTrainStart() {
   else if (dls.due) h += '<div class="warnbox"><b>Пора разгрузиться.</b> ' + Math.floor(dls.weeks) + " " + plural(Math.floor(dls.weeks), "неделя", "недели", "недель") + ' тренировок без разгрузки (по программе раз в ' + S.deload.every + ' нед).<div class="btns" style="margin-top:8px"><button class="btn sm primary" data-act="dlStart">Начать на 7 дней</button><button class="btn sm" data-act="dlSnooze">Через неделю</button></div></div>';
   if (ret && !dls.active) h += '<div class="warnbox"><b>Неделя после перерыва (' + ret.gap + " дн.).</b> До " + dShort(addDays(ret.from, 6)) + " веса в плане снижены на 10%, RPE ≤ 8.</div>";
   var sd = strengthDrop(); if (sd) h += '<div class="warnbox">' + esc(sd) + "</div>";
+  h += '<div class="pane">';
   if (day) {
     h += '<section class="card next-day"><div><div class="label">' + (nd === nextDayId() ? "Следующая по порядку" : "Выбранный день") + "</div><h2>" + esc(day.name) + ' <span class="muted" style="font-weight:600">· ' + day.id + "</span></h2>" +
       (lw ? '<div class="note">Последняя: ' + esc(dayName(lw.day)) + ", " + dDay(lw.d) + " (" + ago(lw.d) + ")</div>" : "") + "</div><div>";
@@ -1827,10 +1896,12 @@ function viewTrainStart() {
     });
     h += '</div><button class="btn primary block" data-act="start" data-d="' + day.id + '">Начать: ' + esc(day.name) + "</button></section>";
   }
+  h += '</div><div class="pane">';
   h += '<button class="btn block" data-act="start" data-d="">Пустая тренировка</button>';
   if (!dls.active && !dls.due) h += '<div class="note" style="text-align:center">' + esc(deloadLine()) + "</div>";
   var ws = weekStats();
-  h += '<section class="card"><div class="label">Последние 7 дней</div><div class="stat-grid"><div class="stat"><b>' + ws.n + '</b><span>' + plural(ws.n, "тренировка", "тренировки", "тренировок") + '</span></div><div class="stat"><b>' + ws.sets + '</b><span>' + plural(ws.sets, "рабочий подход", "рабочих подхода", "рабочих подходов") + '</span></div><div class="stat"><b>' + ws.failPct + '%</b><span>на RPE ≥ 9.5</span></div></div></section>';
+  h += '<section class="card w-first"><div class="label">Последние 7 дней</div><div class="stat-grid"><div class="stat"><b>' + ws.n + '</b><span>' + plural(ws.n, "тренировка", "тренировки", "тренировок") + '</span></div><div class="stat"><b>' + ws.sets + '</b><span>' + plural(ws.sets, "рабочий подход", "рабочих подхода", "рабочих подходов") + '</span></div><div class="stat"><b>' + ws.failPct + '%</b><span>на RPE ≥ 9.5</span></div></div></section>';
+  h += '</div>';
   return h;
 }
 function viewActive() {
@@ -1914,7 +1985,7 @@ function viewHistory() {
   var ws = sortedWorkouts();
   var h = '<div class="head"><div><h1>История</h1><div class="sub">' + ws.length + " " + plural(ws.length, "тренировка", "тренировки", "тренировок") + "</div></div></div>";
   if (!ws.length) return h + '<div class="card"><div class="empty">Тренировок пока нет</div></div>';
-  h += '<section class="card flat">';
+  h += '<section class="card flat hist-list">';
   ws.forEach(function (w) {
     var sets = 0, top = "";
     w.ex.forEach(function (e) { sets += work(e.s).length; });
@@ -2017,7 +2088,7 @@ function viewProgress() {
   if (U.sub && U.sub.charts) return viewCharts();
   var ws = weekStats();
   var h = '<div class="head"><div><h1>Прогресс</h1><div class="sub">Формула: ' + fname(S.formula) + "</div></div></div>";
-  h += '<section class="card flat"><button class="list-row" data-act="chartsOpen"><div class="grow"><b>Графики</b><small>1ПМ, рабочий вес, объём, подходы на мышцу, отказы, вес тела, питание</small></div>' + I.chev + "</button></section>";
+  h += '<div class="pane"><section class="card flat"><button class="list-row" data-act="chartsOpen"><div class="grow"><b>Графики</b><small>1ПМ, рабочий вес, объём, подходы на мышцу, отказы, вес тела, питание</small></div>' + I.chev + "</button></section>";
   h += '<section class="card"><div class="label">Последние 7 дней</div><div class="stat-grid"><div class="stat"><b>' + ws.n + '</b><span>' + plural(ws.n, "тренировка", "тренировки", "тренировок") + '</span></div><div class="stat"><b>' + ws.sets + '</b><span>' + plural(ws.sets, "рабочий подход", "рабочих подхода", "рабочих подходов") + '</span></div><div class="stat"><b>' + ws.failPct + '%</b><span>RPE ≥ 9.5 (цель ≤ 25%)</span></div></div>';
   if (ws.elbowF > 4) h += '<div class="warnbox">Отказ в упражнениях на локти: ' + ws.elbowF + " " + plural(ws.elbowF, "подход", "подхода", "подходов") + " за неделю. Держи Скотт, молотки, обратные сгибания и эспандер на RPE ≤ 9.</div>";
   h += '<div class="label" style="margin-top:4px">Подходов на мышцу · зелёным ориентир</div>';
@@ -2026,7 +2097,7 @@ function viewProgress() {
     h += '<div class="mus"><span>' + m[1] + '</span><div class="trk">' + (m[3] ? '<div class="band" style="left:' + (m[2] / mx * 100) + "%;width:" + ((m[3] - m[2]) / mx * 100) + '%"></div>' : "") + '<div class="val" style="width:' + Math.min(100, v / mx * 100) + '%"></div></div><span class="n">' + num(v, 1) + "</span></div>";
   });
   h += '<div class="note">' + (ws.live ? '<b class="live-note">Идёт тренировка:</b> ' + ws.live + " " + plural(ws.live, "отмеченный подход уже учтён", "отмеченных подхода уже учтены", "отмеченных подходов уже учтены") + ". " : "") + "Вспомогательная работа считается за полподхода: например, тяги дают бицепсу 0.5.</div></section>";
-  h += '<section class="card flat"><div class="list-row" style="padding-bottom:6px"><div class="label">Упражнения · расчётный 1ПМ</div></div>';
+  h += '</div><div class="pane"><section class="card flat"><div class="list-row" style="padding-bottom:6px"><div class="label">Упражнения · расчётный 1ПМ</div></div>';
   var used = {}; S.workouts.forEach(function (w) { w.ex.forEach(function (e) { used[e.e] = 1; }); });
   Object.keys(S.ex).filter(function (k) { return used[k] && S.ex[k].kind !== "grip"; }).forEach(function (k) {
     var ser = rmSeries(k), last = ser[ser.length - 1], first = ser[0];
@@ -2037,6 +2108,7 @@ function viewProgress() {
   var bw = S.body.filter(function (b) { return b.kg; }).sort(function (a, b) { return a.d < b.d ? -1 : 1; });
   var lb = bw[bw.length - 1];
   h += '<section class="card flat"><button class="list-row" data-act="bodyOpen"><div class="grow"><b>Вес тела и талия</b><small>' + (lb ? num(lb.kg, 2) + " кг · " + dShort(lb.d) + (bw.length > 1 ? " · с " + dShort(bw[0].d) + " " + num(lb.kg - bw[0].kg, 2) + " кг" : "") : "Нет записей") + "</small></div>" + spark(bw.map(function (b) { return { d: b.d, v: b.kg }; })) + I.chev + "</button></section>";
+  h += '</div>';
   return h;
 }
 function viewExDetail(id) {
@@ -2229,14 +2301,18 @@ function viewFood() {
   var h = '<div class="head"><div><h1>Питание</h1><div class="sub">' + (day.d && day.d !== t ? "Порции за " + dDay(day.d) : "Сегодня, " + dDay(t)) + '</div></div><button class="btn sm" data-act="goals">Цели</button></div>';
   var hasPor = Object.keys(day.por).some(function (k) { return +day.por[k]; });
   if (day.d && day.d < t && hasPor) h += '<div class="warnbox">Порции за ' + dDay(day.d) + ' не сохранены. <button class="pill" data-act="saveDay">Сохранить за ' + dShort(day.d) + '</button> <button class="pill" data-act="newDay">Начать новый день</button></div>';
-  h += '<section class="card" id="foodSum">' + foodSumHtml() + '<div class="btns"><button class="btn primary" data-act="saveDay">Сохранить день</button><button class="btn" data-act="resetPor">Обнулить</button></div></section>';
+  h += '<div class="pane stick"><section class="card" id="foodSum">' + foodSumHtml() + '<div class="btns"><button class="btn primary" data-act="saveDay">Сохранить день</button><button class="btn" data-act="resetPor">Обнулить</button></div></section>';
+  h += '<button class="btn block n5" data-act="foodNew">+ Новое блюдо</button>';
+  var log = S.food.log.slice().sort(function (a, b) { return a.d < b.d ? 1 : -1; });
+  h += '<section class="card flat n5"><button class="list-row" data-act="foodLog"><div class="grow"><b>Журнал по дням</b><small>' + (log.length ? log.length + " " + plural(log.length, "день", "дня", "дней") + " · последний " + dShort(log[0].d) + avgLine(log.slice(0, 7)) : "Пока нет сохранённых дней") + "</small></div>" + I.chev + "</button></section>";
+  h += '</div><div class="pane">';
   h += '<div style="display:flex;gap:8px;align-items:center">' + (U.foodSort ? '<div class="grow note" style="flex:1">⤒ — в начало списка, ↑↓ — на одну строку</div>' : '<input class="search" style="flex:1" data-in="foodQ" placeholder="Поиск блюда" value="' + esc(U.foodQ) + '" aria-label="Поиск блюда">') + '<button class="btn sm' + (U.foodSort ? " primary" : "") + '" data-act="foodSort">' + (U.foodSort ? "Готово" : "Порядок") + "</button></div>";
   h += '<section class="card flat" id="foodList">' + foodListHtml() + "</section>";
-  h += '<button class="btn block" data-act="foodNew">+ Новое блюдо</button>';
-  var log = S.food.log.slice().sort(function (a, b) { return a.d < b.d ? 1 : -1; });
-  h += '<section class="card flat"><button class="list-row" data-act="foodLog"><div class="grow"><b>Журнал по дням</b><small>' + (log.length ? log.length + " " + plural(log.length, "день", "дня", "дней") + " · последний " + dShort(log[0].d) + avgLine(log.slice(0, 7)) : "Пока нет сохранённых дней") + "</small></div>" + I.chev + "</button></section>";
+  h += '<div class="tail">';
   h += '<div class="note">Значения на порцию, не на 100 г. Готовую порцию «2×» не умножай повторно.</div>';
   h += adviceHtml();
+  h += '</div>';
+  h += '</div>';
   return h;
 }
 function avgLine(l) { if (!l.length) return ""; var k = 0, p = 0; l.forEach(function (x) { k += x.kcal; p += x.p; }); return " · в среднем " + Math.round(k / l.length) + " ккал, " + Math.round(p / l.length) + " г белка"; }
@@ -2262,7 +2338,7 @@ function viewMore() {
   if (U.sub && U.sub.program) return viewProgram();
   if (U.sub && U.sub.exlist) return viewExList();
   var h = '<div class="head"><h1>Ещё</h1></div>';
-  h += '<section class="card"><div class="row-between"><b>Единицы</b><div class="seg" style="width:140px"><button data-act="unit" data-u="lb" aria-pressed="' + (S.unit === "lb") + '">lb</button><button data-act="unit" data-u="kg" aria-pressed="' + (S.unit === "kg") + '">кг</button></div></div>';
+  h += '<div class="pane"><section class="card"><div class="row-between"><b>Единицы</b><div class="seg" style="width:140px"><button data-act="unit" data-u="lb" aria-pressed="' + (S.unit === "lb") + '">lb</button><button data-act="unit" data-u="kg" aria-pressed="' + (S.unit === "kg") + '">кг</button></div></div>';
   h += '<button class="row-between" data-act="formulaSheet" style="width:100%"><b>Формула 1ПМ</b><span class="pill">' + fname(S.formula) + "</span></button>";
   h += '<button class="row-between" data-act="restSheet" data-i="-2" style="width:100%"><b>Отдых по умолчанию</b><span class="pill">' + mmss(S.set.rest) + "</span></button>";
   h += '<button class="row-between" data-act="restSheet" data-i="-3" style="width:100%"><b>Отдых после разминки</b><span class="pill">' + mmss(S.set.warmRest) + "</span></button>";
@@ -2270,10 +2346,10 @@ function viewMore() {
   h += sw("sound", "Звук таймера", "Сигнал в приложении; на заблокированном экране придёт уведомление") + "</section>";
   h += '<section class="card"><div class="label">Программа от Claude</div><div class="note">Я присылаю блок с изменениями программы и весами на следующую тренировку. Скопируй его из чата и вставь сюда.' + (S.lastImport ? " Последнее обновление: " + dShort(S.lastImport.d) + (S.lastImport.note ? " — " + esc(S.lastImport.note) : "") + "." : "") + '</div><button class="btn primary block" data-act="importOpen">Вставить обновление от Claude</button><button class="btn block" data-act="progCopy">' + I.copy + ' Скопировать программу для Claude</button></section>';
   h += '<section class="card"><div class="label">Разгрузка</div><div class="row-between"><b>Каждые</b><div class="seg" style="width:190px">' + [6, 7, 8].map(function (n) { return '<button data-act="dlEvery" data-v="' + n + '" aria-pressed="' + (S.deload.every === n) + '">' + n + " нед</button>"; }).join("") + '</div></div><div class="note">' + esc(deloadLine()) + "</div></section>";
-  h += '<section class="card flat"><button class="list-row" data-act="programOpen"><div class="grow"><b>Программа</b><small>' + S.days.map(function (d) { return d.id + " " + d.name; }).join(" · ") + "</small></div>" + I.chev + '</button><button class="list-row" data-act="exListOpen"><div class="grow"><b>Упражнения</b><small>' + Object.keys(S.ex).length + " · шаг веса, блины, заметки</small></div>" + I.chev + '</button><button class="list-row" data-act="plates" data-i="-1"><div class="grow"><b>Калькулятор блинов</b><small>Штанга и рычажные тренажёры</small></div>' + I.chev + "</button></section>";
+  h += '</div><div class="pane"><section class="card flat"><button class="list-row" data-act="programOpen"><div class="grow"><b>Программа</b><small>' + S.days.map(function (d) { return d.id + " " + d.name; }).join(" · ") + "</small></div>" + I.chev + '</button><button class="list-row" data-act="exListOpen"><div class="grow"><b>Упражнения</b><small>' + Object.keys(S.ex).length + " · шаг веса, блины, заметки</small></div>" + I.chev + '</button><button class="list-row" data-act="plates" data-i="-1"><div class="grow"><b>Калькулятор блинов</b><small>Штанга и рычажные тренажёры</small></div>' + I.chev + "</button></section>";
   if (window.SilaWeb) h += window.SilaWeb.cardHtml();
   else h += '<section class="card"><div class="label">Резервная копия</div><div class="note">Данные хранятся в Scriptable на этом iPhone. Копия сохраняется в iCloud Drive → Scriptable, если он включён.</div><div class="btns"><button class="btn" data-act="backup">Сохранить копию</button><button class="btn" data-act="copyAll">Скопировать данные</button></div><button class="btn block" data-act="restore">Восстановить из копии</button></section>';
-  h += '<div class="note" style="text-align:center">Сила ' + VERSION + " · " + S.workouts.length + " тренировок в истории</div>";
+  h += '</div><div class="note" style="text-align:center">Сила ' + VERSION + " · " + S.workouts.length + " тренировок в истории</div>";
   return h;
 }
 function sw(key, t, s) { return '<div class="toggle"><div><b>' + t + "</b><small>" + s + '</small></div><button class="switch" role="switch" data-act="toggleSet" data-k="' + key + '" aria-checked="' + !!S.set[key] + '" aria-label="' + esc(t) + '"></button></div>'; }
@@ -2888,7 +2964,7 @@ var ACT = {
     var t = val("rsTxt"), o; try { o = JSON.parse(t); } catch (e) { $("rsErr").textContent = "Это не похоже на копию: текст не читается."; return; }
     if (!valid(o)) { $("rsErr").textContent = "В тексте нет данных приложения."; return; }
     if (U.confirm !== "rs") { U.confirm = "rs"; $("rsErr").textContent = ""; var b = document.querySelector('[data-act="restoreGo"]'); if (b) b.textContent = "Точно заменить все данные?"; return; }
-    S = o; U.confirm = null; closeSheet(); persist(); render(false); toast("Данные восстановлены");
+    S = o; migrate(); U.confirm = null; closeSheet(); persist(); render(false); toast("Данные восстановлены");
   }
 };
 
@@ -2970,7 +3046,7 @@ setInterval(function () {
 
 window.__S = function () { return S; };
 window.__ui = { openSheet: openSheet, closeSheet: closeSheet, toast: toast, render: render, valid: valid, today: today, dShort: dShort, version: VERSION, esc: esc,
-  getS: function () { return S; }, setS: function (o) { S = o; persist(); render(false); } };
+  getS: function () { return S; }, setS: function (o) { S = o; migrate(); persist(); render(false); } };
 window.__U = U;
 render(false);
 })();
