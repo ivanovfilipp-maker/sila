@@ -154,7 +154,7 @@ input, textarea, select { font: inherit; color: var(--ink); -webkit-user-select:
 .seg { display: flex; background: var(--fill); border-radius: 999px; padding: 3px; }
 .seg button { flex: 1; padding: 8px 10px; border-radius: 999px; font-weight: 650; font-size: 14px; color: var(--muted); }
 .seg button[aria-pressed="true"] { background: var(--bubble); color: var(--ink); box-shadow: var(--bubble-shadow), inset 0 1px 0 var(--glass-hi); }
-.list-row { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; }
+.list-row { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; min-width: 0; }
 .list-row:last-child { border-bottom: 0; }
 button.list-row:active { background: var(--fill); }
 .list-row .grow { flex: 1; min-width: 0; }
@@ -562,7 +562,7 @@ button.list-row:active { background: var(--fill); }
 "use strict";
 var KEY = "sila-app-v2", CFGK = "sila-web", DEF_SERVER = "https://sila.ivanov-filipp.workers.dev";
 var IS_TEST = !!window.__TEST__;
-function dflt() { return { server: DEF_SERVER.indexOf("__") === 0 ? "" : DEF_SERVER, code: "", vapid: "", push: false, wake: true, fill: true, last: null, lastErr: null, lastExport: null, suspect: null, force: false }; }
+function dflt() { return { server: DEF_SERVER.indexOf("__") === 0 ? "" : DEF_SERVER, code: "", vapid: "", push: false, wake: true, fill: true, last: null, lastErr: null, lastExport: null, suspect: null, force: false, role: "", name: "", welcomed: false }; }
 var cfg = dflt();
 try { cfg = Object.assign(dflt(), JSON.parse(localStorage.getItem(CFGK) || "{}")); } catch (e) {}
 function saveCfg() { var t = JSON.stringify(cfg); try { localStorage.setItem(CFGK, t); } catch (e) {} idbPut("cfg", t); }
@@ -723,11 +723,11 @@ function connectGo() {
   var old = { server: cfg.server, code: cfg.code };
   fetch(u + "/info", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (info) {
     if (!info || info.app !== "sila") throw new Error("По этому адресу не сервер «Силы».");
-    if (info.claimed && !code) throw new Error("Сервер уже подключён к другому телефону или к старой установке. Введи свой код восстановления.");
+    if (info.claimed && !code) throw new Error("Сервер уже занят. Введи свой код восстановления. Если тебя пригласили — закрой это окно и нажми «У меня приглашение».");
     cfg.server = u; cfg.code = code || newCode(); cfg.vapid = info.vapid;
     return api("/claim", {}).then(function (r) {
       if (!r.ok) throw new Error(r.status === 403 ? "Код не подходит к этому серверу." : "Сервер ответил ошибкой: " + (r.error || r.status));
-      saveCfg();
+      cfg.role = r.role || "owner"; cfg.name = r.name || ""; cfg.welcomed = true; saveCfg();
       if (r.fresh) { rerender(); codeSheet(true); doBackup().then(rerender); return; }
       return api("/backups").then(function (b) {
         var lt = (b.list || []).filter(function (x) { return x.slot === "latest"; })[0], here = summary(ui().getS()).w;
@@ -779,11 +779,124 @@ function restoreSlot(slot) {
     .catch(function () { toast("Не удалось загрузить копию"); });
 }
 
+/* ---------- users: the owner invites, an invited person joins with a code on their own phone ---------- */
+var SITE = "https://ivanovfilipp-maker.github.io/sila/";
+function isOwner() { return connected() && cfg.role === "owner"; }
+function nW(n) { return n + " " + plural(n, "тренировка", "тренировки", "тренировок"); }
+function myProgram() {   // the owner's program for a new person: no weights, no history, replaces theirs entirely
+  var S = ui().getS(), K = ui().ITEM_KEYS, used = {}, ex = {};
+  var days = S.days.map(function (d) { return { id: d.id, name: d.name, items: d.items.map(function (it) {
+    var o = {}; K.forEach(function (k) { if (it[k] != null && k !== "startW") o[k] = JSON.parse(JSON.stringify(it[k])); });
+    if (o.top) delete o.top.startW; used[it.ex] = 1; return o; }) }; });
+  Object.keys(used).forEach(function (k) { var e = S.ex[k]; if (!e) return; var o = {}; ["name", "kind", "stepLb", "stepKg", "iso", "elbow", "mus", "load", "note", "def"].forEach(function (f) { if (e[f] != null) o[f] = JSON.parse(JSON.stringify(e[f])); }); ex[k] = o; });
+  return JSON.stringify({ sila: 1, replace: true, unit: "lb", order: S.order.slice(), days: days, ex: ex, note: "Программа от " + (cfg.name || "владельца") });
+}
+function usersSheet(msg) {
+  ui().openSheet('<h2>Пользователи</h2><div class="stack"><div class="note">' + esc(msg || "Загружаю…") + "</div></div>");
+  api("/users").then(function (r) {
+    if (r.status === 404) { cfg.role = "user"; saveCfg(); rerender(); ui().closeSheet(); toast("Приглашать может только владелец сервера"); return; }
+    if (!r.ok) throw new Error(r.error);
+    var h = '<h2>Пользователи</h2><div class="stack"><div class="note">У каждого свой телефон, свой код восстановления и свои копии на сервере. Тренировки и питание не смешиваются.</div>';
+    if (!r.users.length && !r.invites.length) h += '<div class="empty">Пока никого. Нажми «Пригласить».</div>';
+    if (r.users.length) h += '<section class="card flat">' + r.users.map(function (u) {
+      return '<div class="list-row"><div class="grow" style="min-width:0"><b>' + esc(u.name) + "</b><small>" + (u.latest ? "Копия " + ago(u.latest.ts) + " · " + nW(u.latest.workouts) : "Копий ещё нет") + " · с " + new Date(u.t).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }) + '</small></div><button class="pill" style="flex:none;white-space:nowrap" data-act="web" data-w="userDel" data-id="' + esc(u.id) + '" data-n="' + esc(u.name) + '">Удалить</button></div>';
+    }).join("") + "</section>";
+    if (r.invites.length) h += '<div class="label">Ждут входа</div><section class="card flat">' + r.invites.map(function (v) {
+      return '<div class="list-row"><div class="grow" style="min-width:0"><b>' + esc(v.name) + ' · <span class="num">' + esc(v.invite) + "</span></b><small>Действует до " + hm(v.exp) + (v.prog ? " · с твоей программой" : "") + '</small></div><button class="pill" style="flex:none" data-act="web" data-w="invShare" data-inv="' + esc(v.invite) + '" data-n="' + esc(v.name) + '">Отправить</button><button class="pill" style="flex:none" data-act="web" data-w="invDel" data-inv="' + esc(v.invite) + '">✕</button></div>';
+    }).join("") + "</section>";
+    h += '<button class="btn primary block" data-act="web" data-w="inviteNew">Пригласить</button></div>';
+    ui().openSheet(h);
+  }).catch(function () { ui().openSheet('<h2>Пользователи</h2><div class="stack"><div class="warnbox">Нет связи с сервером.</div><button class="btn block" data-act="web" data-w="users">Повторить</button></div>'); });
+}
+function inviteSheet(err, n0, mode0, p0) {
+  var mode = mode0 || "mine";
+  ui().openSheet('<h2>Пригласить</h2><div class="stack">' +
+    '<div class="field"><label for="invName">Имя</label><input id="invName" autocorrect="off" placeholder="Например, Аня" value="' + esc(n0 || "") + '"></div>' +
+    '<div class="label">Программа для нового пользователя</div>' +
+    '<div class="chips"><button class="chip" data-act="web" data-w="invMode" data-m="mine" aria-pressed="' + (mode === "mine") + '">Копия моей</button><button class="chip" data-act="web" data-w="invMode" data-m="paste" aria-pressed="' + (mode === "paste") + '">Вставить блок от Claude</button></div>' +
+    (mode === "mine" ? '<div class="note">Дни и упражнения как у тебя, но без твоих весов и истории: стартовые веса человек подберёт сам. Потом свою программу можно загрузить у себя на телефоне.</div>'
+      : '<div class="field"><label for="invProg">Блок программы</label><textarea id="invProg" rows="6" placeholder="{ &quot;sila&quot;: 1, ... }">' + esc(p0 || "") + '</textarea></div><div class="note">Программа заменит стартовую целиком.</div>') +
+    '<div class="note" style="color:var(--accent)">' + esc(err || "") + '</div><button class="btn primary block" data-act="web" data-w="inviteGo" data-m="' + mode + '">Создать приглашение</button><button class="btn block" data-act="web" data-w="users">Назад</button></div>');
+}
+function inviteGo(mode) {
+  var name = String(document.getElementById("invName").value || "").trim(), prog = "";
+  if (!name) { inviteSheet("Введи имя — так ты отличишь пользователей.", name, mode); return; }
+  if (mode === "paste") {
+    var raw = document.getElementById("invProg").value;
+    try { var o = ui().parseImport(raw); o.replace = true; prog = JSON.stringify(o); } catch (e) { inviteSheet(e.message, name, mode, raw); return; }
+  } else prog = myProgram();
+  api("/invite", { name: name, prog: prog }, 20000).then(function (r) {
+    if (!r.ok) throw new Error(r.error === "too many users" ? "Достигнут предел: 20 пользователей." : "Сервер ответил: " + (r.error || r.status));
+    invitedSheet(r.invite, r.name, r.exp);
+  }).catch(function (e) { inviteSheet(e && e.name === "TypeError" ? "Нет связи с сервером." : e.message, name, mode); });
+}
+function inviteText(inv, name) {
+  return "Приглашение в приложение для тренировок «Сила»" + (name ? " для: " + name : "") + ".\n\n" +
+    "1. Открой ссылку в Safari: " + SITE + "#invite=" + inv + "\n" +
+    "2. Нажми «Поделиться» → «На экран „Домой“».\n" +
+    "3. Открой «Силу» с иконки и нажми «У меня приглашение».\n" +
+    "4. Введи код: " + inv + "\n\nКод одноразовый и действует 7 дней.";
+}
+function invitedSheet(inv, name, exp) {
+  ui().openSheet('<h2>Приглашение для: ' + esc(name) + '</h2><div class="stack"><div class="code-big num">' + esc(inv) + '</div>' +
+    '<div class="note">Отправь код и ссылку человеку. Он установит приложение на свой телефон и введёт код — у него появится свой аккаунт, свой код восстановления и своя история. Код одноразовый' + (exp ? ", действует до " + hm(exp) : "") + ".</div>" +
+    '<button class="btn primary block" data-act="web" data-w="invShare" data-inv="' + esc(inv) + '" data-n="' + esc(name) + '">Отправить приглашение</button><button class="btn block" data-act="web" data-w="users">Готово</button></div>');
+}
+function invShare(inv, name) {
+  var t = inviteText(inv, name);
+  if (navigator.share) navigator.share({ text: t }).catch(function (e) { if (!e || e.name !== "AbortError") { copy(t); } });
+  else copy(t);
+}
+function copy(t) { try { navigator.clipboard.writeText(t); toast("Скопировано"); } catch (e) { toast("Не удалось скопировать"); } }
+function invFromUrl() { var m = /invite=([A-Za-z0-9-]{8,9})/.exec(location.hash || ""); return m ? m[1].toUpperCase() : ""; }
+function joinSheet(err, i0, confirmWipe) {
+  var S = ui().getS(), n = (S.workouts || []).length;
+  ui().openSheet('<h2>У меня приглашение</h2><div class="stack"><div class="note">Введи код из приглашения. На этом телефоне появится твой собственный аккаунт: своя программа, свои тренировки и копии на сервере.</div>' +
+    '<div class="field"><label for="invCode">Код приглашения</label><input id="invCode" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXXX-XXXX" value="' + esc(i0 != null ? i0 : invFromUrl()) + '"></div>' +
+    (n ? '<div class="warnbox">На этом телефоне уже ' + nW(n) + ". Они будут удалены отсюда" + (connected() ? " (копии на сервере останутся у их владельца)" : "") + ". Если это твои данные — не продолжай.</div>" : "") +
+    '<div class="note" style="color:var(--accent)">' + esc(err || "") + '</div><button class="btn primary block" data-act="web" data-w="joinGo" data-c="' + (n ? (confirmWipe ? "2" : "1") : "2") + '">' + (n && !confirmWipe ? "Продолжить" : "Присоединиться") + '</button><button class="btn block" data-act="closeSheet">Отмена</button></div>');
+}
+function joinGo(step) {
+  var inv = String(document.getElementById("invCode").value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (inv.length !== 8) { joinSheet("Код из 8 знаков, например K7Q2-9XMA.", inv); return; }
+  inv = inv.slice(0, 4) + "-" + inv.slice(4);
+  if (step === "1") { joinSheet("Точно удалить тренировки с этого телефона? Нажми ещё раз.", inv, true); return; }
+  var srv = cfg.server || (DEF_SERVER.indexOf("__") === 0 ? "" : DEF_SERVER);
+  if (!srv) { joinSheet("В этой сборке не задан сервер.", inv); return; }
+  var btn = document.querySelector('[data-w="joinGo"]'); if (btn) btn.textContent = "Подключаю…";
+  var old = { server: cfg.server, code: cfg.code, vapid: cfg.vapid };
+  fetch(srv + "/info", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (info) {
+    if (!info || info.app !== "sila" || !(info.version >= 2)) throw new Error("Сервер ещё не обновлён — попроси владельца подождать пару минут.");
+    cfg.server = srv; cfg.code = newCode(); cfg.vapid = info.vapid;
+    return api("/join", { invite: inv }, 20000);
+  }).then(function (r) {
+    if (!r.ok) throw new Error(r.status === 404 ? "Приглашение не найдено, уже использовано или истекло. Попроси новое." : "Сервер ответил: " + (r.error || r.status));
+    var S = JSON.parse(JSON.stringify(ui().getS()));
+    S.workouts = []; S.body = []; S.food.log = []; S.active = null; S.timer = null; delete S.lastImport;
+    Object.keys(S.ex).forEach(function (k) { delete S.ex[k].nextW; });
+    ui().setS(S);
+    var progOk = true;
+    if (r.prog) { try { ui().applyImport(ui().parseImport(r.prog)); ui().persist(); } catch (e) { progOk = false; } }
+    cfg.role = "user"; cfg.name = r.name || ""; cfg.welcomed = true; cfg.force = true; cfg.last = null; cfg.lastErr = null; cfg.suspect = null; cfg.push = false;
+    try { localStorage.setItem(KEY, JSON.stringify(ui().getS())); } catch (e) {}   // the first copy must already be the clean one
+    saveCfg(); try { history.replaceState(null, "", location.pathname); } catch (e) {}
+    ui().render(false); codeSheet(true); doBackup().then(rerender);
+    toast(r.prog ? (progOk ? "Готово: программа загружена" : "Аккаунт создан, но программа не загрузилась — вставь её в «Ещё»") : "Готово: аккаунт создан");
+  }).catch(function (x) {
+    cfg.server = old.server; cfg.code = old.code; cfg.vapid = old.vapid;
+    joinSheet(x && x.name === "TypeError" ? "Не удалось связаться с сервером. Проверь интернет." : (x && x.message) || "Ошибка", inv);
+  });
+}
+function learnRole() {   // installs connected before users existed
+  if (!connected() || cfg.role) return;
+  api("/claim", {}).then(function (r) { if (r.ok) { cfg.role = r.role || "owner"; cfg.name = r.name || cfg.name; saveCfg(); rerender(); } }).catch(function () {});
+}
+
 /* ---------- UI blocks rendered inside the app ---------- */
 function cardHtml() {
   var h = '<section class="card"><div class="label">Сервер: сигнал отдыха и автокопии</div>';
   if (!connected()) {
-    h += '<div class="note">Не подключён. Без сервера таймер звучит только при открытом приложении, а копии нужно сохранять вручную.</div><button class="btn primary block" data-act="web" data-w="connect">Подключить сервер</button>';
+    h += '<div class="note">Не подключён. Без сервера таймер звучит только при открытом приложении, а копии нужно сохранять вручную.</div><button class="btn block" data-act="web" data-w="join">У меня приглашение</button><button class="btn primary block" data-act="web" data-w="connect">Подключить сервер</button>';
   } else {
     var st = cfg.last ? "Автокопия: " + ago(cfg.last.ts) + " · " + cfg.last.w + " " + plural(cfg.last.w, "тренировка", "тренировки", "тренировок") : "Автокопия: ещё не было";
     if (cfg.lastErr && (!cfg.last || cfg.lastErr.ts > cfg.last.ts)) st += ' · <span style="color:var(--accent)">последняя попытка: ' + esc(cfg.lastErr.e) + "</span>";
@@ -794,6 +907,8 @@ function cardHtml() {
     h += '<button class="btn block" data-act="web" data-w="connect" style="opacity:.8">Сменить сервер</button>';
   }
   h += "</section>";
+  if (connected()) h += '<section class="card"><div class="label">Аккаунт</div><div class="note">' + (cfg.role === "user" ? "Ты пользователь" + (cfg.name ? " «" + esc(cfg.name) + "»" : "") + ". Твои данные хранятся отдельно от других." : cfg.role === "owner" ? "Ты владелец сервера. Можно пригласить других: у каждого будет свой аккаунт, своя программа и своя история." : "Проверяю…") + "</div>" +
+    (cfg.role === "owner" ? '<button class="btn block" data-act="web" data-w="users">Пользователи и приглашения</button>' : "") + "</section>";
   h += '<section class="card"><div class="label">Копия в «Файлы»</div><div class="note">Последняя: ' + ago(cfg.lastExport) + ". Выбери iCloud Drive или Google Drive. Сохраняй раз в неделю — это копия на случай, если сервер недоступен.</div>" +
     '<div class="btns"><button class="btn" data-act="web" data-w="export">Сохранить в Файлы</button><button class="btn" data-act="web" data-w="import">Открыть файл копии</button></div>' +
     '<div class="btns"><button class="btn" data-act="copyAll">Скопировать данные</button><button class="btn" data-act="restore">Вставить текст копии</button></div></section>';
@@ -804,6 +919,11 @@ function cardHtml() {
 function bannerHtml() {
   var S = ui().getS(), n = (S.workouts || []).length;
   if (cfg.suspect) return '<div class="warnbox"><b>На сервере история полнее.</b> Там ' + cfg.suspect.best + " " + plural(cfg.suspect.best, "тренировка", "тренировки", "тренировок") + ', здесь ' + cfg.suspect.here + '. Автокопия приостановлена, чтобы ничего не затереть. <button class="pill" data-act="web" data-w="restoreList">Восстановить</button> <button class="pill" data-act="web" data-w="keepLocal">Оставить как здесь</button></div>';
+  if (!n && !connected() && !cfg.welcomed) {
+    var inv = invFromUrl();
+    if (!standalone()) return '<div class="warnbox"><b>Установи приложение.</b> Нажми «Поделиться» → «На экран „Домой“» и открой «Силу» с иконки.' + (inv ? ' Затем «У меня приглашение» и код <b class="num">' + esc(inv) + "</b>." : "") + "</div>";
+    return '<section class="card"><div class="label">Первый запуск</div><div class="note">Тебя пригласили — введи код. Переносишь свои данные — подключи сервер своим кодом восстановления или открой файл копии в «Ещё».</div><div class="btns"><button class="btn primary" data-act="web" data-w="join">У меня приглашение</button><button class="btn" data-act="web" data-w="connect">Мой код</button></div><button class="btn block" data-act="web" data-w="welcomed" style="opacity:.8">Скрыть</button></section>';
+  }
   if (!n) return "";
   var day = 864e5;
   if (connected()) {
@@ -829,6 +949,16 @@ function act(w, el) {
   else if (w === "import") pickFile();
   else if (w === "importGo") importGo();
   else if (w === "wake") { cfg.wake = !cfg.wake; saveCfg(); rerender(); }
+  else if (w === "users") usersSheet();
+  else if (w === "inviteNew") inviteSheet();
+  else if (w === "invMode") { var nm = document.getElementById("invName"); inviteSheet("", nm ? nm.value : "", el.dataset.m); }
+  else if (w === "inviteGo") inviteGo(el.dataset.m);
+  else if (w === "invShare") invShare(el.dataset.inv, el.dataset.n);
+  else if (w === "invDel") api("/invite/del", { invite: el.dataset.inv }).then(function () { usersSheet(); });
+  else if (w === "userDel") { if (el.dataset.sure) api("/user/del", { id: el.dataset.id }).then(function (r) { toast(r.ok ? "Пользователь удалён" : "Не удалось"); usersSheet(); }); else { el.dataset.sure = "1"; el.textContent = "Точно? Удалит и копии"; } }
+  else if (w === "join") joinSheet();
+  else if (w === "joinGo") joinGo(el.dataset.c);
+  else if (w === "welcomed") { cfg.welcomed = true; saveCfg(); rerender(); }
   else if (w === "fill") { cfg.fill = !cfg.fill; saveCfg(); fitReset(); if (cfg.fill) setTimeout(fitDuo, 350); rerender(); }
 }
 
@@ -895,7 +1025,7 @@ function fitWatch() {
 function after() {
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
   if (!IS_TEST && navigator.serviceWorker) navigator.serviceWorker.register("./sw.js").then(function (r) { try { r.update(); } catch (e) {} }).catch(function () {});
-  fitDuo(); fitWatch();
+  fitDuo(); fitWatch(); learnRole();
   setInterval(wakeTick, 2000);
   document.addEventListener("visibilitychange", function () { wakeTick(); if (document.hidden && bkDirty && connected()) { clearTimeout(bkT); doBackup(); } });
   window.addEventListener("online", function () { if (bkDirty) scheduleBackup(); });
@@ -922,7 +1052,7 @@ var BOOT = window.__BOOT || null;
 var SEED = {"v":2,"unit":"lb","formula":"epley","set":{"rest":120,"warmRest":60,"sound":true,"askRpe":true},"plates":{"lb":{"5":true,"10":true,"25":true,"35":true,"45":true,"55":false,"2.5":true},"kg":{"5":true,"10":true,"15":true,"20":true,"25":true,"2.5":true,"1.25":true}},"ex":{"bench":{"id":"bench","name":"Жим штанги лёжа","kind":"barbell","stepLb":5,"stepKg":2.5,"iso":false,"elbow":false,"mus":{"chest":1,"triceps":0.5},"note":"Жми в раме со страховочными упорами на 2–3 см ниже груди или со страховщиком.","load":{"type":"bar","base":45}},"incline":{"id":"incline","name":"Наклонный жим в тренажёре","kind":"machine","stepLb":10,"stepKg":5,"iso":false,"elbow":false,"mus":{"chest":1,"triceps":0.5},"note":"","load":{"type":"none","base":0}},"tricext":{"id":"tricext","name":"Разгибания из-за головы (канат)","kind":"cable","stepLb":5,"stepKg":2.5,"iso":true,"elbow":true,"mus":{"triceps":1},"note":"31.10 при 100 lb щёлкал локоть без боли почти в растянутой точке. После 14.11 вернуть с 60–70 lb, опускать за 3 с, останавливаться чуть выше точки щелчка.","load":{"type":"none","base":0}},"pushdown":{"id":"pushdown","name":"Разгибания вниз (прямая рукоять)","kind":"cable","stepLb":10,"stepKg":5,"iso":true,"elbow":true,"mus":{"triceps":1},"note":"До 14.11 стоит вместо разгибаний из-за головы.","load":{"type":"none","base":0}},"preacher":{"id":"preacher","name":"Сгибания в тренажёре Скотта","kind":"machine","stepLb":10,"stepKg":5,"iso":true,"elbow":true,"mus":{"biceps":1},"note":"Сиденье 4.","load":{"type":"none","base":0}},"hammer":{"id":"hammer","name":"Молотковые сгибания","kind":"dumbbell","stepLb":5,"stepKg":2,"iso":true,"elbow":true,"mus":{"biceps":1,"forearms":0.5},"note":"Без отказа: нагрузка на локти.","load":{"type":"none","base":0}},"lateral":{"id":"lateral","name":"Подъёмы в стороны на блоке","kind":"cable","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"side":1},"note":"","load":{"type":"none","base":0}},"pulldown":{"id":"pulldown","name":"Верхняя тяга","kind":"machine","stepLb":10,"stepKg":5,"iso":false,"elbow":false,"mus":{"back":1,"biceps":0.5},"note":"","load":{"type":"none","base":0}},"isorow":{"id":"isorow","name":"Горизонтальная тяга Iso-Lateral","kind":"machine","stepLb":5,"stepKg":2.5,"iso":false,"elbow":false,"mus":{"back":1,"biceps":0.5,"rear":0.5},"note":"","load":{"type":"plates","base":0}},"revfly":{"id":"revfly","name":"Обратные разведения","kind":"machine","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"rear":1},"note":"Рукояти назад, грудью к спинке.","load":{"type":"none","base":0}},"pecdeck":{"id":"pecdeck","name":"Сведения в тренажёре (пек-дек)","kind":"machine","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"chest":1},"note":"Рукояти вперёд, середина груди. Пауза 1 с в сведении.","load":{"type":"none","base":0}},"revcurl":{"id":"revcurl","name":"Обратные сгибания со штангой","kind":"barbell","stepLb":5,"stepKg":2.5,"iso":true,"elbow":true,"mus":{"forearms":1,"biceps":0.5},"note":"Без отказа: нагрузка на локти.","load":{"type":"bar","base":45}},"grip":{"id":"grip","name":"Эспандер Iron Grip","kind":"grip","stepLb":0,"stepKg":0,"iso":true,"elbow":true,"mus":{"forearms":1},"note":"RPE ≤ 9.","load":{"type":"none","base":0}},"crunch":{"id":"crunch","name":"Скручивания на блоке","kind":"cable","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"abs":1},"note":"По желанию. Если стоять на коленях нельзя, пропусти.","load":{"type":"none","base":0}},"legext":{"id":"legext","name":"Разгибания ног в тренажёре","kind":"machine","stepLb":10,"stepKg":5,"iso":true,"elbow":false,"mus":{"quads":1},"note":"","load":{"type":"none","base":0}},"calf":{"id":"calf","name":"Икры в тренажёре","kind":"machine","stepLb":10,"stepKg":5,"iso":true,"elbow":false,"mus":{"calves":1},"note":"","load":{"type":"none","base":0}}},"days":[{"id":"A","name":"Грудь","items":[{"ex":"bench","scheme":"topback","top":{"lo":3,"hi":5,"rpeLo":8,"rpeHi":8.5,"startW":215,"rest":180},"sets":3,"lo":6,"hi":8,"rpeLo":8,"rpeHi":9,"rest":150,"backPct":0.9,"warm":5},{"ex":"incline","sets":3,"lo":8,"hi":10,"rpeLo":8,"rpeHi":9,"rest":150,"warm":2},{"ex":"pushdown","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"last10":true,"startW":130,"warm":1},{"ex":"preacher","sets":3,"lo":8,"hi":12,"rpeLo":8,"rpeHi":9,"rest":105,"last10":true,"warm":1},{"ex":"hammer","sets":3,"lo":8,"hi":12,"rpeLo":8,"rpeHi":9,"rest":105,"warm":0},{"ex":"lateral","sets":3,"lo":12,"hi":20,"rpeLo":8,"rpeHi":9,"rest":75,"last10":true,"warm":1},{"ex":"legext","sets":2,"lo":12,"hi":20,"rpeLo":7,"rpeHi":8,"rest":45,"group":"1"},{"ex":"calf","sets":2,"lo":12,"hi":20,"rpeLo":7,"rpeHi":8,"rest":90,"group":"1"}]},{"id":"B","name":"Спина","items":[{"ex":"pulldown","sets":4,"lo":8,"hi":12,"rpeLo":8,"rpeHi":9,"rest":150,"warm":3},{"ex":"isorow","sets":4,"lo":10,"hi":12,"rpeLo":8,"rpeHi":9,"rest":150,"warm":1},{"ex":"pushdown","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"startW":130,"warm":2},{"ex":"revfly","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":90,"last10":true,"startW":105,"warm":1},{"ex":"lateral","sets":3,"lo":15,"hi":20,"rpeLo":8,"rpeHi":9,"rest":75,"last10":true,"warm":0},{"ex":"grip","sets":3,"lo":15,"hi":15,"rpeLo":8,"rpeHi":9,"rest":60,"startW":84,"warm":1},{"ex":"crunch","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":8,"rest":60,"optional":true,"warm":1}]},{"id":"C","name":"Фулл бади","items":[{"ex":"bench","sets":3,"lo":10,"hi":12,"rpeLo":7.5,"rpeHi":8,"rest":150,"warm":3},{"ex":"isorow","sets":3,"lo":10,"hi":12,"rpeLo":8,"rpeHi":8,"rest":120,"warm":2},{"ex":"pulldown","sets":3,"lo":12,"hi":15,"rpeLo":8,"rpeHi":8,"rest":120,"warm":1},{"ex":"pecdeck","sets":3,"lo":12,"hi":15,"rpeLo":8,"rpeHi":9,"rest":45,"group":"1","warm":1},{"ex":"revfly","sets":3,"lo":12,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"group":"1","warm":1},{"ex":"lateral","sets":3,"lo":15,"hi":20,"rpeLo":8,"rpeHi":9,"rest":45,"last10":true,"group":"2","warm":1},{"ex":"preacher","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"last10":true,"group":"2","warm":1},{"ex":"revcurl","sets":2,"lo":12,"hi":15,"rpeLo":8,"rpeHi":9,"rest":90,"warm":1}]}],"order":["A","B","C"],"workouts":[],"active":null,"timer":null,"body":[],"food":{"items":[{"id":"f1","name":"Овсянка","kcal":113,"p":4,"f":2,"c":20,"fib":3},{"id":"f2","name":"Протеин","kcal":120,"p":24,"f":2,"c":3,"fib":1},{"id":"f3","name":"Салат без соуса","kcal":100,"p":16,"f":2,"c":2,"fib":2},{"id":"f4","name":"Омлет","kcal":160,"p":11,"f":8,"c":11,"fib":1},{"id":"f5","name":"Клюква сушёная 40 г","kcal":130,"p":0,"f":10,"c":6,"fib":3},{"id":"f6","name":"Томатный сок","kcal":0,"p":0,"f":0,"c":0,"fib":0},{"id":"f7","name":"Молоко","kcal":150,"p":8,"f":8,"c":13,"fib":0},{"id":"f8","name":"Банан","kcal":100,"p":1,"f":0,"c":27,"fib":3},{"id":"f9","name":"Яйцо куриное","kcal":70,"p":6,"f":5,"c":1,"fib":0},{"id":"f10","name":"Пиво","kcal":200,"p":0,"f":0,"c":0,"fib":0},{"id":"f11","name":"Фасоль, банка","kcal":455,"p":24,"f":5,"c":80,"fib":28},{"id":"f12","name":"Чипотл","kcal":650,"p":75,"f":17,"c":48,"fib":13},{"id":"f13","name":"Тунец, банка","kcal":165,"p":39,"f":1,"c":0,"fib":0},{"id":"f14","name":"Пиво 0","kcal":0,"p":0,"f":0,"c":0,"fib":0},{"id":"f15","name":"Йогурт греческий","kcal":90,"p":15,"f":0,"c":0,"fib":0},{"id":"f16","name":"Йогурт жидкий","kcal":120,"p":23,"f":2,"c":5,"fib":0},{"id":"f17","name":"Брискет 1/2","kcal":665,"p":105,"f":28,"c":6,"fib":0},{"id":"f18","name":"Колбаска","kcal":100,"p":10,"f":7,"c":0,"fib":0},{"id":"f19","name":"Протеиновый батончик","kcal":150,"p":28,"f":2,"c":11,"fib":2},{"id":"f20","name":"Ono Hawaiian","kcal":750,"p":56,"f":21,"c":83,"fib":3},{"id":"f21","name":"Milk shake бол.","kcal":250,"p":35,"f":3,"c":5,"fib":1},{"id":"f22","name":"Пиво Coors Light","kcal":100,"p":0,"f":0,"c":0,"fib":0},{"id":"f23","name":"Panda Express","kcal":720,"p":72,"f":29,"c":40,"fib":9},{"id":"f24","name":"5 перцев","kcal":35,"p":1,"f":0,"c":7,"fib":3},{"id":"f25","name":"Вяленое мясо","kcal":90,"p":14,"f":0,"c":12,"fib":2},{"id":"f26","name":"Кофе","kcal":150,"p":0,"f":0,"c":0,"fib":0},{"id":"f27","name":"Дабл-дабл","kcal":610,"p":34,"f":0,"c":0,"fib":0},{"id":"f28","name":"Стейк кубики","kcal":120,"p":20,"f":3,"c":1,"fib":0},{"id":"f29","name":"Мясо стик","kcal":90,"p":6,"f":6,"c":3,"fib":0},{"id":"f30","name":"Тунец, пакет","kcal":70,"p":14,"f":1,"c":2,"fib":1},{"id":"f31","name":"Мясо","kcal":270,"p":40,"f":11,"c":4,"fib":0},{"id":"f32","name":"Курица 1/4 упаковки","kcal":326,"p":60,"f":10,"c":0,"fib":0}],"goals":{"kcal":1800,"p":200,"f":60,"c":120,"fib":30},"day":{"d":"2026-11-02","por":{"f1":2,"f4":1,"f5":1,"f7":2,"f16":2,"f19":1,"f20":1}},"log":[]}};
 var KEY = "sila-app-v2";
 var LB = 2.20462;
-var VERSION = "1.7.1";
+var VERSION = "1.8.0";
 
 /* ============================== state ============================== */
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -1544,7 +1674,7 @@ var ITEM_KEYS = ["ex", "sets", "lo", "hi", "rpeLo", "rpeHi", "rest", "last10", "
 function programExport() {
   var used = {}; S.days.forEach(function (d) { d.items.forEach(function (it) { used[it.ex] = 1; }); });
   var ex = {}; Object.keys(S.ex).forEach(function (k) { var e = S.ex[k]; if (!used[k]) return; ex[k] = { name: e.name, kind: e.kind, stepLb: e.stepLb, iso: !!e.iso, load: e.load }; });
-  return JSON.stringify({ sila: 1, _format: "Обновление для приложения «Сила»: пришли JSON с sila:1. days — дни целиком (id, name, items: ex, sets, lo, hi, rpeLo, rpeHi, rest с, last10, group, warm, startW, scheme:'topback' + top{lo,hi,rpeLo,rpeHi,startW,rest} + backPct); ex — новые или изменённые упражнения по id (name, kind, stepLb, stepKg, iso, elbow, mus{мышца:1|0.5}, load{type:none|bar|plates, base}, note); next — веса на следующую тренировку {exId:{w, top, back, r:[повторы], note}}; note — короткий текст; goals — цели питания. Веса в lb.", unit: "lb", order: S.order, days: S.days.map(function (d) { return { id: d.id, name: d.name, items: d.items.map(function (it) { var o = {}; ITEM_KEYS.forEach(function (k) { if (it[k] != null) o[k] = it[k]; }); return o; }) }; }), ex: ex });
+  return JSON.stringify({ sila: 1, _format: "Обновление для приложения «Сила»: пришли JSON с sila:1. days — дни целиком (id, name, items: ex, sets, lo, hi, rpeLo, rpeHi, rest с, last10, group, warm, startW, scheme:'topback' + top{lo,hi,rpeLo,rpeHi,startW,rest} + backPct); ex — новые или изменённые упражнения по id (name, kind, stepLb, stepKg, iso, elbow, mus{мышца:1|0.5}, load{type:none|bar|plates, base}, note); next — веса на следующую тренировку {exId:{w, top, back, r:[повторы], note}}; note — короткий текст; goals — цели питания; replace:true — заменить программу целиком (дни, которых нет в блоке, удалятся). Веса в lb.", unit: "lb", order: S.order, days: S.days.map(function (d) { return { id: d.id, name: d.name, items: d.items.map(function (it) { var o = {}; ITEM_KEYS.forEach(function (k) { if (it[k] != null) o[k] = it[k]; }); return o; }) }; }), ex: ex });
 }
 function parseImport(txt) {
   var t = String(txt || "").replace(/```(json)?/gi, "");
@@ -1567,6 +1697,11 @@ function parseImport(txt) {
 function exNameIn(o, id) { return (o.ex && o.ex[id] && o.ex[id].name) || EX(id).name; }
 function importPreview(o) {
   var L = [];
+  if (o.replace && (o.days || []).length) {
+    var keepIds = o.days.map(function (d) { return d.id; });
+    L.push({ c: "hold", t: "Вся программа", x: "заменится целиком: " + o.days.map(function (d) { return d.id + " · " + (d.name || d.id); }).join(", ") });
+    S.days.forEach(function (d) { if (keepIds.indexOf(d.id) < 0) L.push({ c: "down", t: "Убрать день", x: d.id + " · " + d.name }); });
+  }
   Object.keys(o.ex || {}).forEach(function (k) { if (!S.ex[k]) L.push({ c: "up", t: "Новое упражнение", x: o.ex[k].name }); else { var ch = Object.keys(o.ex[k]).filter(function (f) { return JSON.stringify(S.ex[k][f]) !== JSON.stringify(o.ex[k][f]); }); if (ch.length) L.push({ c: "hold", t: "Изменено", x: S.ex[k].name + ": " + ch.join(", ") }); } });
   (o.days || []).forEach(function (d) {
     var cur = dayOf(d.id), nm = d.name || (cur ? cur.name : d.id);
@@ -1594,6 +1729,7 @@ function importPreview(o) {
 }
 function applyImport(o) {
   var toLb = o.unit === "kg" ? LB : 1;
+  if (o.replace && (o.days || []).length) { S.days = []; S.order = []; }
   Object.keys(o.ex || {}).forEach(function (k) {
     var base = S.ex[k] || { id: k, name: k, kind: "machine", stepLb: 5, stepKg: 2.5, iso: false, elbow: false, mus: {}, load: { type: "none", base: 0 }, note: "" };
     S.ex[k] = Object.assign(base, o.ex[k], { id: k });
@@ -3059,7 +3195,8 @@ setInterval(function () {
 
 window.__S = function () { return S; };
 window.__ui = { openSheet: openSheet, closeSheet: closeSheet, toast: toast, render: render, valid: valid, today: today, dShort: dShort, version: VERSION, esc: esc,
-  getS: function () { return S; }, setS: function (o) { S = o; migrate(); persist(); render(false); } };
+  getS: function () { return S; }, setS: function (o) { S = o; migrate(); persist(); render(false); },
+  parseImport: parseImport, applyImport: applyImport, persist: persist, ITEM_KEYS: ITEM_KEYS };
 window.__U = U;
 render(false);
 })();

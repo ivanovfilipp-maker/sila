@@ -1,5 +1,5 @@
 /* «Сила» service worker: works offline, shows the rest-timer push. */
-var CACHE = "sila-1.7.1-05dd6af2";
+var CACHE = "sila-1.8.0-a8fd4e02";
 var ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png"];
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(ASSETS); }).then(function () { return self.skipWaiting(); }));
@@ -15,7 +15,7 @@ function fromNet(req, ms) {
 }
 self.addEventListener("fetch", function (e) {
   var req = e.request, url = new URL(req.url);
-  if (req.method !== "GET" || url.origin !== self.location.origin) return;
+  if (req.method !== "GET" || url.origin !== self.location.origin || req.url.indexOf(self.registration.scope) !== 0) return;   // app files only, never server answers
   var page = req.mode === "navigate" || url.pathname.endsWith("/") || url.pathname.endsWith("/index.html");
   if (page) {
     // newest version when online (3 s budget), the saved copy otherwise
