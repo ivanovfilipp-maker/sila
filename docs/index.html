@@ -226,6 +226,7 @@ button.list-row:active { background: var(--fill); }
 .ex-foot { display: flex; gap: 8px; padding: 8px 12px 14px; flex-wrap: wrap; }
 .hint { font-size: 12px; color: var(--muted); padding: 0 12px 6px 50px; }
 .hint button { color: var(--accent); font-weight: 700; font-size: 12px; }
+.hint.rh:empty { display: none; }
 .ex-note { width: 100%; border: 1px solid var(--line); background: var(--fill); border-radius: 14px; padding: 9px 12px; font-size: 15px; resize: none; min-height: 40px; }
 
 /* floating glass: tab bar, timer, toast */
@@ -1052,7 +1053,7 @@ var BOOT = window.__BOOT || null;
 var SEED = {"v":2,"unit":"lb","formula":"epley","set":{"rest":120,"warmRest":60,"sound":true,"askRpe":true},"plates":{"lb":{"5":true,"10":true,"25":true,"35":true,"45":true,"55":false,"2.5":true},"kg":{"5":true,"10":true,"15":true,"20":true,"25":true,"2.5":true,"1.25":true}},"ex":{"bench":{"id":"bench","name":"Жим штанги лёжа","kind":"barbell","stepLb":5,"stepKg":2.5,"iso":false,"elbow":false,"mus":{"chest":1,"triceps":0.5},"note":"Жми в раме со страховочными упорами на 2–3 см ниже груди или со страховщиком.","load":{"type":"bar","base":45}},"incline":{"id":"incline","name":"Наклонный жим в тренажёре","kind":"machine","stepLb":10,"stepKg":5,"iso":false,"elbow":false,"mus":{"chest":1,"triceps":0.5},"note":"","load":{"type":"none","base":0}},"tricext":{"id":"tricext","name":"Разгибания из-за головы (канат)","kind":"cable","stepLb":5,"stepKg":2.5,"iso":true,"elbow":true,"mus":{"triceps":1},"note":"31.10 при 100 lb щёлкал локоть без боли почти в растянутой точке. После 14.11 вернуть с 60–70 lb, опускать за 3 с, останавливаться чуть выше точки щелчка.","load":{"type":"none","base":0}},"pushdown":{"id":"pushdown","name":"Разгибания вниз (прямая рукоять)","kind":"cable","stepLb":10,"stepKg":5,"iso":true,"elbow":true,"mus":{"triceps":1},"note":"До 14.11 стоит вместо разгибаний из-за головы.","load":{"type":"none","base":0}},"preacher":{"id":"preacher","name":"Сгибания в тренажёре Скотта","kind":"machine","stepLb":10,"stepKg":5,"iso":true,"elbow":true,"mus":{"biceps":1},"note":"Сиденье 4.","load":{"type":"none","base":0}},"hammer":{"id":"hammer","name":"Молотковые сгибания","kind":"dumbbell","stepLb":5,"stepKg":2,"iso":true,"elbow":true,"mus":{"biceps":1,"forearms":0.5},"note":"Без отказа: нагрузка на локти.","load":{"type":"none","base":0}},"lateral":{"id":"lateral","name":"Подъёмы в стороны на блоке","kind":"cable","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"side":1},"note":"","load":{"type":"none","base":0}},"pulldown":{"id":"pulldown","name":"Верхняя тяга","kind":"machine","stepLb":10,"stepKg":5,"iso":false,"elbow":false,"mus":{"back":1,"biceps":0.5},"note":"","load":{"type":"none","base":0}},"isorow":{"id":"isorow","name":"Горизонтальная тяга Iso-Lateral","kind":"machine","stepLb":5,"stepKg":2.5,"iso":false,"elbow":false,"mus":{"back":1,"biceps":0.5,"rear":0.5},"note":"","load":{"type":"plates","base":0}},"revfly":{"id":"revfly","name":"Обратные разведения","kind":"machine","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"rear":1},"note":"Рукояти назад, грудью к спинке.","load":{"type":"none","base":0}},"pecdeck":{"id":"pecdeck","name":"Сведения в тренажёре (пек-дек)","kind":"machine","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"chest":1},"note":"Рукояти вперёд, середина груди. Пауза 1 с в сведении.","load":{"type":"none","base":0}},"revcurl":{"id":"revcurl","name":"Обратные сгибания со штангой","kind":"barbell","stepLb":5,"stepKg":2.5,"iso":true,"elbow":true,"mus":{"forearms":1,"biceps":0.5},"note":"Без отказа: нагрузка на локти.","load":{"type":"bar","base":45}},"grip":{"id":"grip","name":"Эспандер Iron Grip","kind":"grip","stepLb":0,"stepKg":0,"iso":true,"elbow":true,"mus":{"forearms":1},"note":"RPE ≤ 9.","load":{"type":"none","base":0}},"crunch":{"id":"crunch","name":"Скручивания на блоке","kind":"cable","stepLb":5,"stepKg":2.5,"iso":true,"elbow":false,"mus":{"abs":1},"note":"По желанию. Если стоять на коленях нельзя, пропусти.","load":{"type":"none","base":0}},"legext":{"id":"legext","name":"Разгибания ног в тренажёре","kind":"machine","stepLb":10,"stepKg":5,"iso":true,"elbow":false,"mus":{"quads":1},"note":"","load":{"type":"none","base":0}},"calf":{"id":"calf","name":"Икры в тренажёре","kind":"machine","stepLb":10,"stepKg":5,"iso":true,"elbow":false,"mus":{"calves":1},"note":"","load":{"type":"none","base":0}}},"days":[{"id":"A","name":"Грудь","items":[{"ex":"bench","scheme":"topback","top":{"lo":3,"hi":5,"rpeLo":8,"rpeHi":8.5,"startW":215,"rest":180},"sets":3,"lo":6,"hi":8,"rpeLo":8,"rpeHi":9,"rest":150,"backPct":0.9,"warm":5},{"ex":"incline","sets":3,"lo":8,"hi":10,"rpeLo":8,"rpeHi":9,"rest":150,"warm":2},{"ex":"pushdown","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"last10":true,"startW":130,"warm":1},{"ex":"preacher","sets":3,"lo":8,"hi":12,"rpeLo":8,"rpeHi":9,"rest":105,"last10":true,"warm":1},{"ex":"hammer","sets":3,"lo":8,"hi":12,"rpeLo":8,"rpeHi":9,"rest":105,"warm":0},{"ex":"lateral","sets":3,"lo":12,"hi":20,"rpeLo":8,"rpeHi":9,"rest":75,"last10":true,"warm":1},{"ex":"legext","sets":2,"lo":12,"hi":20,"rpeLo":7,"rpeHi":8,"rest":45,"group":"1"},{"ex":"calf","sets":2,"lo":12,"hi":20,"rpeLo":7,"rpeHi":8,"rest":90,"group":"1"}]},{"id":"B","name":"Спина","items":[{"ex":"pulldown","sets":4,"lo":8,"hi":12,"rpeLo":8,"rpeHi":9,"rest":150,"warm":3},{"ex":"isorow","sets":4,"lo":10,"hi":12,"rpeLo":8,"rpeHi":9,"rest":150,"warm":1},{"ex":"pushdown","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"startW":130,"warm":2},{"ex":"revfly","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":90,"last10":true,"startW":105,"warm":1},{"ex":"lateral","sets":3,"lo":15,"hi":20,"rpeLo":8,"rpeHi":9,"rest":75,"last10":true,"warm":0},{"ex":"grip","sets":3,"lo":15,"hi":15,"rpeLo":8,"rpeHi":9,"rest":60,"startW":84,"warm":1},{"ex":"crunch","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":8,"rest":60,"optional":true,"warm":1}]},{"id":"C","name":"Фулл бади","items":[{"ex":"bench","sets":3,"lo":10,"hi":12,"rpeLo":7.5,"rpeHi":8,"rest":150,"warm":3},{"ex":"isorow","sets":3,"lo":10,"hi":12,"rpeLo":8,"rpeHi":8,"rest":120,"warm":2},{"ex":"pulldown","sets":3,"lo":12,"hi":15,"rpeLo":8,"rpeHi":8,"rest":120,"warm":1},{"ex":"pecdeck","sets":3,"lo":12,"hi":15,"rpeLo":8,"rpeHi":9,"rest":45,"group":"1","warm":1},{"ex":"revfly","sets":3,"lo":12,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"group":"1","warm":1},{"ex":"lateral","sets":3,"lo":15,"hi":20,"rpeLo":8,"rpeHi":9,"rest":45,"last10":true,"group":"2","warm":1},{"ex":"preacher","sets":3,"lo":10,"hi":15,"rpeLo":8,"rpeHi":9,"rest":105,"last10":true,"group":"2","warm":1},{"ex":"revcurl","sets":2,"lo":12,"hi":15,"rpeLo":8,"rpeHi":9,"rest":90,"warm":1}]}],"order":["A","B","C"],"workouts":[],"active":null,"timer":null,"body":[],"food":{"items":[{"id":"f1","name":"Овсянка","kcal":113,"p":4,"f":2,"c":20,"fib":3},{"id":"f2","name":"Протеин","kcal":120,"p":24,"f":2,"c":3,"fib":1},{"id":"f3","name":"Салат без соуса","kcal":100,"p":16,"f":2,"c":2,"fib":2},{"id":"f4","name":"Омлет","kcal":160,"p":11,"f":8,"c":11,"fib":1},{"id":"f5","name":"Клюква сушёная 40 г","kcal":130,"p":0,"f":10,"c":6,"fib":3},{"id":"f6","name":"Томатный сок","kcal":0,"p":0,"f":0,"c":0,"fib":0},{"id":"f7","name":"Молоко","kcal":150,"p":8,"f":8,"c":13,"fib":0},{"id":"f8","name":"Банан","kcal":100,"p":1,"f":0,"c":27,"fib":3},{"id":"f9","name":"Яйцо куриное","kcal":70,"p":6,"f":5,"c":1,"fib":0},{"id":"f10","name":"Пиво","kcal":200,"p":0,"f":0,"c":0,"fib":0},{"id":"f11","name":"Фасоль, банка","kcal":455,"p":24,"f":5,"c":80,"fib":28},{"id":"f12","name":"Чипотл","kcal":650,"p":75,"f":17,"c":48,"fib":13},{"id":"f13","name":"Тунец, банка","kcal":165,"p":39,"f":1,"c":0,"fib":0},{"id":"f14","name":"Пиво 0","kcal":0,"p":0,"f":0,"c":0,"fib":0},{"id":"f15","name":"Йогурт греческий","kcal":90,"p":15,"f":0,"c":0,"fib":0},{"id":"f16","name":"Йогурт жидкий","kcal":120,"p":23,"f":2,"c":5,"fib":0},{"id":"f17","name":"Брискет 1/2","kcal":665,"p":105,"f":28,"c":6,"fib":0},{"id":"f18","name":"Колбаска","kcal":100,"p":10,"f":7,"c":0,"fib":0},{"id":"f19","name":"Протеиновый батончик","kcal":150,"p":28,"f":2,"c":11,"fib":2},{"id":"f20","name":"Ono Hawaiian","kcal":750,"p":56,"f":21,"c":83,"fib":3},{"id":"f21","name":"Milk shake бол.","kcal":250,"p":35,"f":3,"c":5,"fib":1},{"id":"f22","name":"Пиво Coors Light","kcal":100,"p":0,"f":0,"c":0,"fib":0},{"id":"f23","name":"Panda Express","kcal":720,"p":72,"f":29,"c":40,"fib":9},{"id":"f24","name":"5 перцев","kcal":35,"p":1,"f":0,"c":7,"fib":3},{"id":"f25","name":"Вяленое мясо","kcal":90,"p":14,"f":0,"c":12,"fib":2},{"id":"f26","name":"Кофе","kcal":150,"p":0,"f":0,"c":0,"fib":0},{"id":"f27","name":"Дабл-дабл","kcal":610,"p":34,"f":0,"c":0,"fib":0},{"id":"f28","name":"Стейк кубики","kcal":120,"p":20,"f":3,"c":1,"fib":0},{"id":"f29","name":"Мясо стик","kcal":90,"p":6,"f":6,"c":3,"fib":0},{"id":"f30","name":"Тунец, пакет","kcal":70,"p":14,"f":1,"c":2,"fib":1},{"id":"f31","name":"Мясо","kcal":270,"p":40,"f":11,"c":4,"fib":0},{"id":"f32","name":"Курица 1/4 упаковки","kcal":326,"p":60,"f":10,"c":0,"fib":0}],"goals":{"kcal":1800,"p":200,"f":60,"c":120,"fib":30},"day":{"d":"2026-11-02","por":{"f1":2,"f4":1,"f5":1,"f7":2,"f16":2,"f19":1,"f20":1}},"log":[]}};
 var KEY = "sila-app-v2";
 var LB = 2.20462;
-var VERSION = "1.8.0";
+var VERSION = "1.8.1";
 
 /* ============================== state ============================== */
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -1505,6 +1506,35 @@ function markDone(i, j) {
   if (s.k === 2) backAdjust(i);
   startRest(restFor(x, s), EX(x.e).name);
   persist(); render();
+}
+// reps the lifter can do at a weight they typed in, at the set's target RPE, from the current 1RM estimate
+function repsAt(rm, w, rpe) { var best = 0; for (var r = 1; r <= 30; r++) { if (wFor(rm, r, rpe) >= w * 0.99) best = r; else break; } return best; }   // 1% slack: weights are rounded to the plate step
+function rmBasis(x, j) {
+  if (x.rm) return { v: x.rm, src: "введён вручную" };
+  for (var k = j - 1; k >= 0; k--) { var p = x.sets[k]; if (p.done && p.k !== 1 && p.rpe != null && p.w > 0) return { v: e1(p.w, p.r, p.rpe), src: "по подходу сегодня" }; }
+  var r = exRM(x); return r ? { v: r.v, src: r.src === "сегодня" ? "по подходам сегодня" : "от " + r.src } : null;
+}
+function repHint(x, j) {
+  var s = x.sets[j], ex = EX(x.e);
+  if (!s || s.done || s.k === 1 || !s.manW || !(s.w > 0) || ex.kind === "grip") return null;
+  var b = rmBasis(x, j); if (!b || !(b.v > 0)) return null;
+  var T = s.k === 2 && x.it.top ? x.it.top : x.it, rpe = s.trpe || T.rpeHi || 9, r = repsAt(b.v, s.w, rpe);
+  return { r: Math.max(r, 1), over: r === 0, cap: r >= 30, rpe: rpe, rm: b.v, src: b.src, lo: s.lo || T.lo, hi: s.hi || T.hi };
+}
+function repHintHtml(h) {
+  if (!h) return "";
+  var t = h.over ? "Тяжелее расчётного: даже 1 повтор выйдет тяжелее RPE " + num(h.rpe, 1)
+    : "≈ " + (h.cap ? "30+" : h.r) + " " + plural(h.r, "повтор", "повтора", "повторов") + " до RPE " + num(h.rpe, 1);
+  var w = h.over ? "" : h.lo && h.r < h.lo ? " — меньше плана " + h.lo + "–" + h.hi + ", вес тяжеловат" : h.hi && h.r > h.hi ? " — больше плана " + h.lo + "–" + h.hi + ", можно тяжелее" : " — в плане " + h.lo + "–" + h.hi;
+  return t + w + ' <span style="opacity:.7">(1ПМ ' + fw(h.rm) + " " + esc(h.src) + ")</span>";
+}
+// after the weight of an unfinished set is typed in: the reps target (placeholder, auto-filled on ✓) follows the 1RM estimate
+function repFollow(i, j) {
+  var x = A().ex[i], s = x.sets[j]; if (!s) return null;
+  if (s.tr0 == null) s.tr0 = s.tr;
+  var h = repHint(x, j);
+  s.tr = h ? h.r : s.tr0;
+  return h;
 }
 function liveHint(x, j) {
   var s = x.sets[j]; if (s.done || s.k === 1 || x.rm) return null;
@@ -2120,6 +2150,7 @@ function exCard(x, i) {
     if (s.done && s.k !== 1 && s.w > 0 && ex.kind !== "grip") {
       h += '<div class="set" style="padding-top:0;padding-bottom:2px"><span></span><div class="set-meta"><span>1ПМ по подходу ' + fw(e1(s.w, s.r, s.rpe == null ? 10 : s.rpe)) + (s.rpe == null ? " (без RPE)" : "") + "</span>" + (s.pr ? '<span class="pill pr">★ рекорд</span>' : "") + "</div></div>";
     }
+    h += '<div class="hint rh" id="rh-' + i + "-" + j + '">' + repHintHtml(repHint(x, j)) + "</div>";
     var hint = liveHint(x, j);
     if (hint) h += '<div class="hint">По сегодняшнему подходу: ' + fwu(hint.w) + " × " + hint.tr + ' <button data-act="hintApply" data-i="' + i + '" data-j="' + j + '" data-w="' + hint.w + '">поставить</button></div>';
   });
@@ -2886,7 +2917,7 @@ var ACT = {
     persist(); render();
   },
   noteToggle: function (el) { var x = A().ex[+el.dataset.i]; x.showNote = !x.showNote; render(); },
-  hintApply: function (el) { setOf(el).w = +el.dataset.w; persist(); render(); },
+  hintApply: function (el) { var z = setOf(el); z.w = +el.dataset.w; z.manW = false; if (z.tr0 != null) z.tr = z.tr0; persist(); render(); },
   restSheet: function (el) { restSheet(+el.dataset.i); },
   restPick: function (el) {
     var c = U.sheetCtx, v = el.dataset.v === "custom" ? (nval("restMin") || 0) * 60 + (nval("restSec") || 0) : +el.dataset.v;
@@ -3163,7 +3194,12 @@ document.addEventListener("input", function (ev) {
   var el = ev.target, k = el.dataset && el.dataset.in; if (!k) return;
   if (k === "w" || k === "r") {
     var s = setOf(el), v = parseNum(el.value);
-    if (k === "w") { s.w = isFinite(v) ? fromU(v) : null; delete s.wx; s.manW = true; } else s.r = isFinite(v) ? Math.round(v) : null;
+    if (k === "w") {
+      s.w = isFinite(v) ? fromU(v) : null; delete s.wx; s.manW = true;
+      var ii = +el.dataset.i, jj = +el.dataset.j, rh = repFollow(ii, jj), box = $("rh-" + ii + "-" + jj), ri = el.parentNode && el.parentNode.querySelector('input[data-in="r"]');
+      if (box) box.innerHTML = repHintHtml(rh);
+      if (ri) ri.placeholder = s.tr || "";
+    } else s.r = isFinite(v) ? Math.round(v) : null;
     persist();
   } else if (k === "note") { A().ex[+el.dataset.i].note = el.value; persist(); }
   else if (k === "cardio") { var c = A().cardio = A().cardio || {}, kk = el.dataset.k; c[kk] = kk === "min" ? parseMin(el.value) : (isFinite(parseNum(el.value)) ? parseNum(el.value) : null); persist(); }
